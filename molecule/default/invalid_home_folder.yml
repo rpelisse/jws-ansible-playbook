@@ -1,0 +1,32 @@
+---
+- name: "Red Hat JBoss Web Server installation and configuration"
+  hosts: invalid_home
+  vars:
+    tomcat_install_dir: /does/not/exists/on/filesystem
+
+    # Use Case 1 - Using Tomcat from apache
+    tomcat_version: 9.0.50
+    tomcat_download_url: https://archive.apache.org/dist/tomcat/tomcat-9/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.zip
+    tomcat_zipfile: "/opt/tomcat.zip"
+    tomcat_home: /does/not/exists/on/filesystem
+    # workaround issue on Github actions
+    ansible_distribution: 'RedHat'
+
+  pre_tasks:
+    - name: "Download latest Apache Tomcat Zipfile from {{ tomcat_download_url }}."
+      get_url:
+        url: "{{ tomcat_download_url }}"
+        dest: "{{ tomcat_zipfile }}"
+      when:
+        - tomcat_download_url is defined
+  tasks:
+
+    - block:
+        - include_role:
+            name: jws
+
+      rescue:
+        - debug:
+            msg: "Playbook failed as expected"
+
+

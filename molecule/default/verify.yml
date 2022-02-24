@@ -1,0 +1,57 @@
+---
+- name: Verify
+  hosts: instance
+  vars:
+    tomcat_listen_http_bind_address: 127.0.0.1
+  tasks:
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: Check if infinispan service started
+      assert:
+        that:
+          - ansible_facts.services["tomcat.service"]["state"] == "running"
+
+    - wait_for:
+        port: 8080
+
+    - name: Slurp the content of catalina.out
+      ansible.builtin.slurp:
+        src: /opt/apache-tomcat-9.0.50/logs/catalina.out
+      register: catalina_out
+
+    - name: Print the content of catalina.out
+      ansible.builtin.debug:
+        msg: "{{ catalina_out['content'] | b64decode | length }}"
+
+    - name: collect facts about system services
+      service_facts:
+      register: services_state
+
+    - set_fact:
+        services_list: "{{ services_state.ansible_facts.services }}"
+
+    - name: Check that Tomcat service is running
+      assert:
+        that:
+          - services_list is defined
+          - services_list['tomcat.service'] is defined
+          - services_list['tomcat.service'].state is defined
+          - services_list['tomcat.service'].state == "running"
+
+    - name: "Ensure Tomcat is started and listen to appropriate port"
+      wait_for:
+        host: "{{ tomcat_listen_http_bind_address }}"
+        port: "8080"
+
+- name: Verify invalid home
+  hosts: invalid_home
+  vars:
+  tasks:
+    - block:
+        - wait_for:
+            port: 8080
+            timeout: 30
+      rescue:
+        - debug:
+            msg: "No install of Tomcat was performed as expected"
